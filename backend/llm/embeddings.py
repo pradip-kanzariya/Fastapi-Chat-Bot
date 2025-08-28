@@ -1,7 +1,7 @@
 import os
 import json
 from dotenv import load_dotenv
-from backend.llm import Bedrock
+from backend.llm.bedrock import Bedrock
 
 load_dotenv()
 
