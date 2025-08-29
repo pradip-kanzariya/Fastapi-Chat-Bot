@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, Text, DateTime, String, ForeignKey
 from datetime import datetime
-from backend.database.postgresql import Base
+from sqlalchemy.orm import declarative_base
+
+Base = declarative_base()
 
 class Users(Base):
 

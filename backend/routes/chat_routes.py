@@ -9,8 +9,8 @@ import pytesseract
 import json
 import os
 from typing import Optional
-from backend.database.postgresql import get_db
-from backend.models.chat import ChatHistory
+from backend.dependencies.dependencies import get_db
+from backend.models.models import ChatHistory
 from backend.llm.embeddings import generate_embeddings
 from backend.utils import retrive_similar_chats, format_created_at, build_messages
 from backend.llm.bedrock import Bedrock

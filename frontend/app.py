@@ -1,7 +1,5 @@
 import streamlit as st
 import uuid
-import pandas as pd
-import PyPDF2
 from utils import fetch_all_sessions, fetch_session_chats, send_message
 
 st.title("Chat Bot")
