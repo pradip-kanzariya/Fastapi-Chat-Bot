@@ -36,26 +36,27 @@ try:
     if choice:
         session_chat = fetch_session_chats(choice)
 
-        for chat in session_chat:
-            st.markdown(
-                f"""
-                <div style="
-                    background-color: #f9f9f9;
-                    padding: 15px;
-                    margin-bottom: 15px;
-                    border-radius: 12px;
-                    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-                    position: relative;
-                ">
-                    <div style="position: absolute; top: 8px; right: 12px; font-size: 12px; color: gray;">
-                        🕒 {chat['created_at']}
-                    </div>
-                    <p><b>Question:</b> {chat['question']}</p>
-                    <p><b>Answer:</b> {chat['answer']}</p>
-                    </div>
-                """,
-                unsafe_allow_html=True
-            )
+        if session_chat:
+            for chat in session_chat:
+                st.markdown(
+                    f"""
+                    <div style="
+                        background-color: #f9f9f9;
+                        padding: 15px;
+                        margin-bottom: 15px;
+                        border-radius: 12px;
+                        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+                        position: relative;
+                    ">
+                        <div style="position: absolute; top: 8px; right: 12px; font-size: 12px; color: gray;">
+                            🕒 {chat['created_at']}
+                        </div>
+                        <p><b>Question:</b> {chat['question']}</p>
+                        <p><b>Answer:</b> {chat['answer']}</p>
+                        </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
     if chat_prompt:
         if file_upload is not None:
