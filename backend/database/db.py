@@ -1,11 +1,10 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import os
-from dotenv import load_dotenv
 from backend.models.models import Base
-load_dotenv()
+from backend.configuration import settings
 
-database_url = os.getenv("DATABASE_URL")
+database_url = settings.DATABASE_URL
 
 class Database:
     _engine = None

@@ -5,24 +5,36 @@ from sqlalchemy import desc, asc
 from PyPDF2 import PdfReader
 from PIL import Image
 from io import BytesIO
-import pytesseract
 import json
 import os
+import logging
 from typing import Optional
+import pytesseract
 from backend.dependencies.dependencies import get_db
 from backend.models.models import ChatHistory
-from backend.llm.embeddings import generate_embeddings
 from backend.utils import retrive_similar_chats, format_created_at, build_messages
 from backend.llm.bedrock import Bedrock
+from backend.auth.auth import decode_jwt_token
 
-router = APIRouter(prefix="/chat", tags=["Chat"])
+logger = logging.getLogger(__name__)
 
-pytesseract.pytesseract.tesseract_cmd = os.getenv("TESSERACT_DIR")
+router = APIRouter()
 
 @router.post("/")
-async def message(session_id: str, question: str, file: Optional[UploadFile] = File(None), db: Session = Depends(get_db)):
+async def message(
+    session_id: str, 
+    question: str, 
+    file: Optional[UploadFile] = File(None), 
+    db: Session = Depends(get_db),
+    current_user: str = Depends(decode_jwt_token)
+    ):
     try:
-        all_chats = db.query(ChatHistory).filter(ChatHistory.session_id == session_id).all()
+        all_chats = (
+            db.query(ChatHistory)
+            .filter(ChatHistory.session_id == session_id)
+            .filter(ChatHistory.user_id == current_user["user_id"])
+            .all()
+        )
         file_data = None
         combined_question = question
 
@@ -31,7 +43,7 @@ async def message(session_id: str, question: str, file: Optional[UploadFile] = F
             file_name = file.filename
             file_type = file.content_type
             file_size = len(content)
-            print(f"file_name = {file_name}, file_type = {file_type}, file_size = {file_size}")
+            logger.info(f"file_name = {file_name}, file_type = {file_type}, file_size = {file_size}")
 
             try:
                 if file.filename.lower().endswith(".pdf"):
@@ -54,7 +66,7 @@ async def message(session_id: str, question: str, file: Optional[UploadFile] = F
                 file_data = f"[Could not extract text: {e}]"
                 combined_question = f"User's question: {question}"
 
-        query_embeddings = generate_embeddings(combined_question)
+        query_embeddings = Bedrock.generate_embeddings(combined_question)
         similar_chat = retrive_similar_chats(query_embeddings, all_chats)
         messages = build_messages(similar_chat, combined_question)
 
@@ -81,6 +93,7 @@ async def message(session_id: str, question: str, file: Optional[UploadFile] = F
 
         chat_entry = ChatHistory(
             session_id=session_id,
+            user_id=current_user["user_id"],
             user_question=question,
             model_answer=result,
             file_data=file_data,
@@ -90,16 +103,20 @@ async def message(session_id: str, question: str, file: Optional[UploadFile] = F
         db.commit()
         db.refresh(chat_entry)
 
-        return JSONResponse({"message": result}, status_code=200)
+        return JSONResponse({"user":current_user, "message": result}, status_code=200)
 
     except Exception as e:
-        return JSONResponse({"Error": str(e)}, status_code=500)
+        logger.error(e)
 
 
 @router.get("/")
-async def get_chat_history(db: Session = Depends(get_db)):
+async def get_chat_history(db: Session = Depends(get_db), current_user: str = Depends(decode_jwt_token)):
     try:
-        all_chats = db.query(ChatHistory).order_by(desc(ChatHistory.created_at)).all()
+        all_chats = (
+            db.query(ChatHistory)
+            .filter(ChatHistory.user_id == current_user["user_id"])
+            .order_by(desc(ChatHistory.created_at)).all()
+        )
         chats_list = [
             {
                 "id": chat.id,
@@ -112,16 +129,19 @@ async def get_chat_history(db: Session = Depends(get_db)):
             }
             for chat in all_chats
         ]
-        return JSONResponse({"all_chats": chats_list}, status_code=200)
+        return JSONResponse({"current_user":current_user, "all_chats": chats_list}, status_code=200)
     except Exception as e:
-        return JSONResponse({"Error": str(e)}, status_code=500)
+        logger.error(e)
 
 
 @router.get("/{session_id}/")
-async def get_chat_by_session(session_id: str, db: Session = Depends(get_db)):
+async def get_chat_by_session(session_id: str, db: Session = Depends(get_db), current_user: str = Depends(decode_jwt_token)):
     try:
         chats = (
-            db.query(ChatHistory).filter(ChatHistory.session_id == session_id).order_by(asc(ChatHistory.created_at)).all()
+            db.query(ChatHistory)
+            .filter(ChatHistory.session_id == session_id)
+            .filter(ChatHistory.user_id == current_user["user_id"])
+            .order_by(asc(ChatHistory.created_at)).all()
         )
         chats_list = [
             {
@@ -133,6 +153,6 @@ async def get_chat_by_session(session_id: str, db: Session = Depends(get_db)):
             }
             for chat in chats
         ]
-        return JSONResponse({"all_chats": chats_list}, status_code=200)
+        return JSONResponse({"current_user":current_user, "all_chats": chats_list}, status_code=200)
     except Exception as e:
-        return JSONResponse({"Error": str(e)}, status_code=500)
+        logger.error(e)

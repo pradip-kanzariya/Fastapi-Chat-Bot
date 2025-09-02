@@ -1,18 +1,20 @@
 import requests
-import os
-from dotenv import load_dotenv
+import jwt
+from datetime import datetime, timezone
+import logging
+from configuration import settings
 
-load_dotenv()
+logger = logging.getLogger(__name__)
 
-# ------------------- Backend Setup -------------------
-backend_host = os.getenv("BACKEND_HOST", "localhost")
-backend_port = os.getenv("BACKEND_PORT", "8000")
+backend_host = settings.BACKEND_HOST
+backend_port = settings.BACKEND_PORT
 backend_url = f"http://{backend_host}:{backend_port}"
 
-def fetch_all_sessions():
+def fetch_all_sessions(token):
     """Get all sessions from backend (only ones with chats)."""
     try:
-        res = requests.get(f"{backend_url}/get_chat/")
+        headers = {"Authorization": f"Bearer {token}"}
+        res = requests.get(f"{backend_url}/chat/", headers=headers)
         all_chats = res.json().get("all_chats", [])
 
         # Sort all chats by created_at (descending: newest first)
@@ -24,19 +26,21 @@ def fetch_all_sessions():
                 session_ids.append(chat["session_id"])
         return session_ids
     except Exception as e:
-        return f"Error : {e}"
+        logger.error(e)
+        return []
     
 
-def fetch_session_chats(session_id):
+def fetch_session_chats(session_id, token):
     """Fetch all chats for a specific session."""
     try:
-        res = requests.get(f"{backend_url}/get_chat/{session_id}/")
+        headers = {"Authorization": f"Bearer {token}"}
+        res = requests.get(f"{backend_url}/chat/{session_id}/", headers=headers)
         if res.status_code == 200:
             return res.json().get("all_chats", [])
     except Exception as e:
-        return f"Error : {e}"
+        logger.error(e)
 
-def send_message(session_id, question, file_data=None):
+def send_message(session_id, question, token, file_data=None):
     """Send a chat message to the backend."""
     try:
         data = {
@@ -44,16 +48,80 @@ def send_message(session_id, question, file_data=None):
             "question": question
         }
 
+        headers = {"Authorization": f"Bearer {token}"}
+
         res = requests.post(
             f"{backend_url}/chat/",
+            headers=headers,
             params=data,   # form fields
-            files=file_data   # file upload (if provided)
+            files=file_data,   # file upload (if provided)
         )
 
         if res.status_code == 200:
             return res.json().get("message", "")
-        else:
+
+    except Exception as e:
+        logger.error(e)
+    
+def login_user(user_email, user_password):
+    try:
+        payload = {
+            "username": user_email,
+            "password": user_password
+        }
+
+        res = requests.post(
+            f"{backend_url}/user/login",
+            data=payload,
+            headers={"Content-Type": "application/x-www-form-urlencoded"}
+        )
+
+        if res.status_code == 200:
             return res.json()
 
     except Exception as e:
-        return f"Error : {e}"
+        logger.error(e)
+    
+def register_user(username, user_email, user_password):
+    try:
+        payload = {"username":username, "user_email":user_email, "user_password":user_password}
+
+        res = requests.post(
+            f"{backend_url}/user/register",
+            json=payload
+        )
+        if res.status_code == 200:
+            return res.json().get("username")
+        
+    except Exception as e:
+        logger.error(e)
+    
+class TokenData:
+    def __init__(self, token: str):
+        self.token = token
+        try:
+            # Decode without verifying signature (since you only need data)
+            self.decoded = jwt.decode(token, options={"verify_signature": False})
+        except Exception:
+            self.decoded = {}
+
+    def is_token_expired(self) -> bool:
+        """Check if token is expired"""
+        try:
+            exp = self.decoded.get("exp")
+            if not exp:
+                return True
+            return datetime.now(timezone.utc).timestamp() > exp
+        except Exception:
+            return True
+
+    def get_user_info(self) -> dict:
+        """Get basic user info from token"""
+        try:
+            return {
+                "username": self.decoded.get("username"),
+                "email": self.decoded.get("email"),
+                "user_id": self.decoded.get("user_id"),
+            }
+        except Exception:
+            return {}
