@@ -17,9 +17,9 @@ cookies = EncryptedCookieManager(
     password=os.environ.get("COOKIES_SECRET"),
 )
 
-class Settings(BaseSettings):
+class ConfigurationSettings(BaseSettings):
     """All .env variable configuration in Settings."""
     BACKEND_HOST : str = os.environ.get("BACKEND_HOST")
     BACKEND_PORT : int = os.environ.get("BACKEND_PORT")
 
-settings: Settings = Settings()
+settings = ConfigurationSettings()
