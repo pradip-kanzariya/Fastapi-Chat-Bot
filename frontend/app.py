@@ -2,12 +2,18 @@ import streamlit as st
 import uuid
 import logging
 from streamlit_cookies_manager import EncryptedCookieManager
-from utils import fetch_all_sessions, fetch_session_chats, send_message, login_user, register_user, TokenData
+from utils import (
+    fetch_all_sessions,
+    fetch_session_chats,
+    send_message,
+    login_user,
+    register_user,
+    TokenData,
+)
 from configuration import cookies
 
 logger = logging.getLogger(__name__)
-
-logger.info("App staring.")
+logger.info("App starting...")
 
 cookies = EncryptedCookieManager(
     prefix="chat_app",
@@ -15,12 +21,14 @@ cookies = EncryptedCookieManager(
 )
 
 if not cookies.ready():
+    st.warning("Cookies not ready. Please reload.")
     st.stop()
 
 # Store JWT token in session state
 if "token" not in st.session_state:
     st.session_state["token"] = cookies.get("token")
 
+# -------------------- AUTH --------------------
 if not st.session_state["token"]:
     st.sidebar.title("Auth Menu")
     auth_choice = st.sidebar.radio("Choose action", ["Login", "Register"])
@@ -31,15 +39,19 @@ if not st.session_state["token"]:
         input_password = st.text_input("Password", type="password")
 
         if st.button("Login"):
-            token = login_user(input_email, input_password)
-            if token:
-                cookies["token"] = token["access_token"]
-                cookies.save()
-                st.session_state["token"] = token["access_token"]
-                st.success("Login successful!")
-                st.rerun()
-            else:
-                st.error("Invalid credentials")
+            try:
+                token = login_user(input_email, input_password)
+                if token and "access_token" in token:
+                    cookies["token"] = token["access_token"]
+                    cookies.save()
+                    st.session_state["token"] = token["access_token"]
+                    st.success("Login successful!")
+                    st.rerun()
+                else:
+                    st.error(token.get("error", "Invalid credentials"))
+            except Exception as e:
+                logger.error(f"Login error: {e}")
+                st.error("Something went wrong during login.")
 
     else:  # Register
         st.title("Register")
@@ -49,15 +61,20 @@ if not st.session_state["token"]:
         confirm_password = st.text_input("Confirm Password", type="password")
 
         if st.button("Register"):
-            if register_password != confirm_password:
-                st.error("Passwords do not match!")
-            else:
-                success = register_user(register_username, register_email, register_password)
-                if success:
-                    st.success("Registration successful! Please login now.")
+            try:
+                if register_password != confirm_password:
+                    st.error("Passwords do not match!")
                 else:
-                    st.error("Registration failed. Try another email.")
+                    success = register_user(register_username, register_email, register_password)
+                    if success and not success.get("error"):
+                        st.success("Registration successful! Please login now.")
+                    else:
+                        st.error(success.get("error", "Registration failed. Try another email."))
+            except Exception as e:
+                logger.error(f"Register error: {e}")
+                st.error("Something went wrong during registration.")
 
+# -------------------- MAIN CHAT APP --------------------
 else:
     token_data = TokenData(st.session_state["token"])
 
@@ -72,40 +89,49 @@ else:
     chat_prompt = st.chat_input("Ask anything")
 
     with st.sidebar:
-        user_info = token_data.get_user_info()
-        st.write(f"Welcome {user_info["username"]}")
-        if st.button("Logout"):
-            st.session_state["token"] = None
-            cookies["token"] = ""
-            cookies.save()
-            st.rerun()
+        try:
+            user_info = token_data.get_user_info()
+            st.write(f"Welcome {user_info.get('username', 'User')}")
 
-        st.subheader("Sidebar Menu")
+            if st.button("Logout"):
+                st.session_state["token"] = None
+                cookies["token"] = ""
+                cookies.save()
+                st.rerun()
 
-        file_upload = st.file_uploader("Upload File:", type=["txt", "csv", "pdf", "png"])
+            st.subheader("Sidebar Menu")
 
-        if "current_session" not in st.session_state:
-            st.session_state["current_session"] = None
+            file_upload = st.file_uploader("Upload File:", type=["txt", "csv", "pdf", "png"])
 
-        if st.button("New Chat"):
-            new_id = str(uuid.uuid4())
-            st.session_state["current_session"] = new_id
+            if "current_session" not in st.session_state:
+                st.session_state["current_session"] = None
 
-        choice = None
-        all_sessions = fetch_all_sessions(st.session_state["token"])
+            if st.button("New Chat"):
+                new_id = str(uuid.uuid4())
+                st.session_state["current_session"] = new_id
 
-        if st.session_state["current_session"] and st.session_state["current_session"] not in all_sessions:
-            all_sessions.insert(0, st.session_state["current_session"])
+            choice = None
+            all_sessions = fetch_all_sessions(st.session_state["token"])
 
-        if all_sessions:
-            choice = st.radio("Chats", all_sessions, key="chat_selector")
-        else:
-            st.write("No chats found.")
+            if (
+                st.session_state["current_session"]
+                and st.session_state["current_session"] not in all_sessions
+            ):
+                all_sessions.insert(0, st.session_state["current_session"])
 
-    if choice == None:
+            if all_sessions:
+                choice = st.radio("Chats", all_sessions, key="chat_selector")
+            else:
+                st.write("No chats found.")
+        except Exception as e:
+            logger.error(f"Sidebar error: {e}")
+            st.error("Failed to load sidebar menu.")
+
+    if choice is None:
         choice = str(uuid.uuid4())
         st.session_state["current_session"] = choice
 
+    # -------------------- CHAT WINDOW --------------------
     try:
         if choice:
             session_chat = fetch_session_chats(choice, st.session_state["token"])
@@ -118,23 +144,32 @@ else:
                                     border-radius: 12px; box-shadow: 0 2px 6px rgba(0,0,0,0.1);
                                     position: relative;">
                             <div style="position: absolute; top: 8px; right: 12px; font-size: 12px; color: gray;">
-                                🕒 {chat['created_at']}
+                                🕒 {chat.get('created_at', '')}
                             </div>
-                            <p><b>Question:</b> {chat['question']}</p>
-                            <p><b>Answer:</b> {chat['answer']}</p>
+                            <p><b>Question:</b> {chat.get('question', '')}</p>
+                            <p><b>Answer:</b> {chat.get('answer', '')}</p>
                         </div>
                         """,
-                        unsafe_allow_html=True
+                        unsafe_allow_html=True,
                     )
 
         if chat_prompt:
             st.markdown(f"**Question:** {chat_prompt}")
-            if file_upload is not None:
-                files = {"file": (file_upload.name, file_upload.getvalue(), file_upload.type)}
-                create_message = send_message(choice, chat_prompt, st.session_state["token"], files)  # 🔑 pass token
-            else:
-                create_message = send_message(choice, chat_prompt, st.session_state["token"])  # 🔑 pass token
+            try:
+                if file_upload is not None:
+                    files = {"file": (file_upload.name, file_upload.getvalue(), file_upload.type)}
+                    create_message = send_message(choice, chat_prompt, st.session_state["token"], files)
+                else:
+                    create_message = send_message(choice, chat_prompt, st.session_state["token"])
 
-            st.write(create_message)
+                if create_message and not create_message.get("error"):
+                    st.write(create_message.get("message"))
+                else:
+                    st.error(create_message.get("error", "Failed to send message."))
+
+            except Exception as e:
+                logger.error(f"Message sending error: {e}")
+                st.error("Something went wrong while sending your message.")
     except Exception as e:
-        st.error(e)
+        logger.error(f"Main chat error: {e}")
+        st.error("An error occurred while loading chat history.")

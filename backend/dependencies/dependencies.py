@@ -1,7 +1,8 @@
-from backend.database.db import Database
+from backend.database.db import InitializeDatabase
 
 def get_db():
-    db = Database.get_session()
+    """Returns db yield from database connection."""
+    db = InitializeDatabase.get_session()
     try:
         yield db
     finally:

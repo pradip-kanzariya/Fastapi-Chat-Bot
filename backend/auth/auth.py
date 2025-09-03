@@ -15,13 +15,16 @@ ACCESS_TOKEN_EXPIRE_MINUTES = settings.ACCESS_TOKEN_EXPIRE_MINUTES
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="user/login")
 
-def hash_password(password: str) -> str:
+async def hash_password(password: str) -> str:
+    """Hash password."""
     return pwd_context.hash(password)
 
-def verify_password(plain_password: str, hashed_password: str) -> bool:
+async def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify password."""
     return pwd_context.verify(plain_password, hashed_password)
 
-def create_jwt_token(data, exp=None):
+async def create_jwt_token(data, exp=None):
+    """Create JWT token."""
     if exp is None:
         exp = ACCESS_TOKEN_EXPIRE_MINUTES
 
@@ -38,7 +41,8 @@ def create_jwt_token(data, exp=None):
     except Exception as e:
         logger.error(e)
 
-def decode_jwt_token(token: str = Depends(oauth2_scheme)):
+async def decode_jwt_token(token: str = Depends(oauth2_scheme)):
+    """Decode JWT token."""
     try:
         payload = jwt.decode(jwt=token, key=SECRET_KEY, algorithms=[ALGORITHM])
         return payload

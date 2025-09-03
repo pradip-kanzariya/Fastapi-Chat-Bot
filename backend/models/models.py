@@ -5,7 +5,7 @@ from sqlalchemy.orm import declarative_base
 Base = declarative_base()
 
 class Users(Base):
-
+    """Users table."""
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -15,7 +15,7 @@ class Users(Base):
     created_at = Column(DateTime, default=datetime.now)
 
 class ChatHistory(Base):
-
+    """ChatHistory table."""
     __tablename__ = "chat_history"
 
     id = Column(Integer, primary_key=True, index=True)

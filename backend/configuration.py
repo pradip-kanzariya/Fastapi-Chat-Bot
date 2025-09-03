@@ -11,8 +11,8 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 
-class Settings(BaseSettings):
-
+class ConfigurationSettings(BaseSettings):
+    """All environment variables configuration and use through this class."""
     # Backend
     BACKEND_HOST : str = os.environ.get("BACKEND_HOST")
     BACKEND_PORT : int = os.environ.get("BACKEND_PORT")
@@ -39,4 +39,4 @@ class Settings(BaseSettings):
     AWS_REGION_NAME : str = os.environ.get("AWS_REGION_NAME")
     AWS_SERVICE_NAME : str = os.environ.get("AWS_SERVICE_NAME")
 
-settings: Settings = Settings()
+settings = ConfigurationSettings()
