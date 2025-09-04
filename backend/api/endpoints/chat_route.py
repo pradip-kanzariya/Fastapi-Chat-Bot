@@ -1,14 +1,15 @@
-from fastapi import APIRouter, Depends, File, UploadFile, Form, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional
 import logging
-
+from typing import Annotated
+from backend.services.llm_services import call_llm
 from backend.dependencies.dependencies import get_db
-from backend.models.models import ChatHistory
 from backend.llm.bedrock_sevice import BedrockServices
+from backend.schemas.chat_schema import SendMessage
 from backend.auth.auth import decode_jwt_token
 from backend.services.file_processor import process_uploaded_file
-from backend.services.chat_service import save_chat_entry, fetch_chat_sessions, fetch_session_messages, call_llm, build_messages, retrive_similar_chats
+from backend.services.chat_service import build_messages, retrive_similar_chats
+from backend.api.crud.chat_crud import save_chat_entry, fetch_chat_sessions, fetch_session_messages, fetch_user_chats
 
 logger = logging.getLogger(__name__)
 
@@ -17,22 +18,18 @@ router = APIRouter()
 
 @router.post("/send_message")
 async def send_message_and_generate_answer(
-    session_id: str = Form(...),
-    question: str = Form(...),
-    file: Optional[UploadFile] = File(None),
+    chat_data: Annotated[SendMessage, Form()],
     db: Session = Depends(get_db),
     current_user: dict = Depends(decode_jwt_token)
 ):
     """Send user question (and optional file) to LLM and return answer."""
     try:
+
         # Fetch previous chats
-        all_chats = db.query(ChatHistory).filter(
-            ChatHistory.session_id == session_id,
-            ChatHistory.user_id == current_user["user_id"]
-        ).all()
+        all_chats = fetch_user_chats(db=db, session_id=chat_data.session_id, user_id=current_user["user_id"])
 
         # Handle file (if uploaded)
-        file_data, combined_question = await process_uploaded_file(file, question)
+        file_data, combined_question = await process_uploaded_file(chat_data.file, chat_data.question)
 
         # Generate embeddings
         query_embeddings = BedrockServices.generate_embeddings(text=combined_question)
@@ -45,9 +42,9 @@ async def send_message_and_generate_answer(
         # Save chat in DB
         chat_entry = save_chat_entry(
             db=db,
-            session_id=session_id,
+            session_id=chat_data.session_id,
             user_id=current_user["user_id"],
-            question=question,
+            question=chat_data.question,
             answer=result,
             file_data=file_data,
             embedding=query_embeddings

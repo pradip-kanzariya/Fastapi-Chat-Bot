@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 import os
 from backend.models.models import Base
-from backend.configuration import settings
+from backend.core.configuration import settings
 
 database_url = settings.DATABASE_URL
 

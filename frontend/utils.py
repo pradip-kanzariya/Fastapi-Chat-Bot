@@ -62,13 +62,21 @@ def send_message(session_id, question, token, file_data=None):
         data = {"session_id": session_id, "question": question}
         headers = {"Authorization": f"Bearer {token}"}
 
-        res = requests.post(
-            f"{backend_url}/chat/send_message",
-            headers=headers,
-            data=data,
-            files=file_data,
-            timeout=20,
-        )
+        if file_data:
+            res = requests.post(
+                f"{backend_url}/chat/send_message",
+                headers=headers,
+                data=data,
+                files=file_data,
+                timeout=20,
+            )
+        else:
+            res = requests.post(
+                f"{backend_url}/chat/send_message",
+                headers=headers,
+                data=data,
+                timeout=20,
+            )
 
         if res.status_code == 200:
             return res.json()

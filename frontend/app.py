@@ -113,10 +113,7 @@ else:
             choice = None
             all_sessions = fetch_all_sessions(st.session_state["token"])
 
-            if (
-                st.session_state["current_session"]
-                and st.session_state["current_session"] not in all_sessions
-            ):
+            if st.session_state["current_session"] and st.session_state["current_session"] not in all_sessions:
                 all_sessions.insert(0, st.session_state["current_session"])
 
             if all_sessions:
@@ -127,9 +124,9 @@ else:
             logger.error(f"Sidebar error: {e}")
             st.error("Failed to load sidebar menu.")
 
-    if choice is None:
-        choice = str(uuid.uuid4())
-        st.session_state["current_session"] = choice
+    # if choice is None:
+    #     choice = str(uuid.uuid4())
+    #     st.session_state["current_session"] = choice
 
     # -------------------- CHAT WINDOW --------------------
     try:
