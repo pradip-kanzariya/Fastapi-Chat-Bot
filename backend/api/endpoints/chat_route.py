@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.post("/send_message")
+@router.post("/send_message/")
 async def send_message_and_generate_answer(
     chat_data: Annotated[SendMessage, Form()],
     db: Session = Depends(get_db),
@@ -40,7 +40,7 @@ async def send_message_and_generate_answer(
         result = call_llm(messages)
 
         # Save chat in DB
-        chat_entry = save_chat_entry(
+        save_chat_entry(
             db=db,
             session_id=chat_data.session_id,
             user_id=current_user["user_id"],
@@ -57,12 +57,12 @@ async def send_message_and_generate_answer(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/chat_sessions")
+@router.get("/chat_sessions/")
 async def get_user_chat_sessions(
     db: Session = Depends(get_db),
     current_user: dict = Depends(decode_jwt_token)
 ):
-    """Get all chat history of current user."""
+    """Get all chat sessions of current user."""
     try:
         sessions_list = fetch_chat_sessions(db, current_user["user_id"])
         return {"current_user": current_user, "sessions_list": sessions_list}

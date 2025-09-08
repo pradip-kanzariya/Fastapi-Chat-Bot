@@ -10,8 +10,7 @@ from backend.api.crud.user_crud import register_new_user
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-
-@router.post("/register")
+@router.post("/register/")
 async def user_register(user: RegisterUser, db: Session = Depends(get_db)):
     """Register a new user."""
     try:
@@ -22,7 +21,7 @@ async def user_register(user: RegisterUser, db: Session = Depends(get_db)):
         return HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/login")
+@router.post("/login/")
 async def user_login(
     form_data: OAuth2PasswordRequestForm = Depends(),
     db: Session = Depends(get_db)

@@ -1,9 +1,7 @@
 from pydantic_settings import BaseSettings
 import pytesseract
-import os
+from typing import List
 import logging
-from dotenv import load_dotenv
-load_dotenv()
 
 # Configure Logging
 logging.basicConfig(
@@ -13,30 +11,47 @@ logging.basicConfig(
 
 class ConfigurationSettings(BaseSettings):
     """All environment variables configuration and use through this class."""
+
     # Backend
-    BACKEND_HOST : str = os.environ.get("BACKEND_HOST")
-    BACKEND_PORT : int = os.environ.get("BACKEND_PORT")
+    BACKEND_HOST: str
+    BACKEND_PORT: int
 
     # Database
-    DATABASE_URL : str = os.environ.get("DATABASE_URL")
+    DATABASE_URL: str
 
     # Auth
-    SECRET_KEY : str = os.environ.get("SECRET_KEY")
-    ALGORITHM : str = os.environ.get("ALGORITHM")
-    ACCESS_TOKEN_EXPIRE_MINUTES : int = os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES")
+    SECRET_KEY: str
+    ALGORITHM: str
+    ACCESS_TOKEN_EXPIRE_MINUTES: int
 
     # Configure Tesseract
-    tesseract_cmd : str = os.environ.get("TESSERACT_DIR")
-    pytesseract.pytesseract.tesseract_cmd = tesseract_cmd
+    TESSERACT_DIR: str
 
-    # Configure Aws
-    AWS_ACCESS_KEY_ID : str = os.environ.get("AWS_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY : str = os.environ.get("AWS_SECRET_ACCESS_KEY")
-    AWS_SESSION_TOKEN : str = os.environ.get("AWS_SESSION_TOKEN")
-    AWS_LLM_ID : str = os.environ.get("AWS_LLM_ID")
-    AWS_ANTHROPIC_VERSION : str = os.environ.get("AWS_ANTHROPIC_VERSION")
-    AWS_EMBEDDING_MODEL_ID : str = os.environ.get("AWS_EMBEDDING_MODEL_ID")
-    AWS_REGION_NAME : str = os.environ.get("AWS_REGION_NAME")
-    AWS_SERVICE_NAME : str = os.environ.get("AWS_SERVICE_NAME")
+    # AWS
+    AWS_ACCESS_KEY_ID: str
+    AWS_SECRET_ACCESS_KEY: str
+    AWS_SESSION_TOKEN: str
+    AWS_LLM_ID: str
+    AWS_ANTHROPIC_VERSION: str
+    AWS_EMBEDDING_MODEL_ID: str
+    AWS_REGION_NAME: str
+    AWS_SERVICE_NAME: str
+
+    # Cookies
+    COOKIES_PREFIX: str
+    COOKIES_SECRET: str
+
+    # Middlewares
+    ALLOW_ORIGINS: List[str] = ["*"]
+    ALLOW_METHODS: List[str] = ["*"]
+    ALLOW_HEADERS: List[str] = ["*"]
+
+    class Config:
+        env_file = ".env"   # automatically loads from .env
+        extra = "allow"     # ignore unknown .env keys
+
 
 settings = ConfigurationSettings()
+
+# configure tesseract at runtime
+pytesseract.pytesseract.tesseract_cmd = settings.TESSERACT_DIR
